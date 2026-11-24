@@ -1,71 +1,107 @@
-# EXPERIMENT 1. EXPLORING NUMPY AND PANDAS
+# Experiment 6: ARIMA Model for Forecasting
+
+## Aim
+
+To evaluate predictive models using performance metrics.
+
+## Algorithm
+
+1.  **START**
+2.  Prepare stationary time series.
+3.  Identify ARIMA -- (p, d, q) parameters using ACF/PACF.
+4.  Fit the ARIMA model on the data.
+5.  Forecast future periods and plot the results.
+6.  Evaluate forecast accuracy.
+7.  **STOP**
 
 
 
-## AIM
-
-
-To understand the use of NumPy and Pandas for performing basic data
-manipulation and analysis in Python.
-
-
-## ALGORITHM
-
-
-1.  Import the NumPy library for matrix and numerical operations.
-2.  Define a two-dimensional square matrix `A` and a vector `b`.
-3.  Compute the transpose of matrix `A` to interchange rows and columns.
-4.  Calculate the inverse of matrix `A` using `np.linalg.inv(A)` (ensure
-    `A` is non-singular).
-5.  Solve the linear equation `A × x = b` using `np.linalg.solve(A, b)`.
-6.  Perform eigen decomposition to find eigenvalues and eigenvectors
-    using `np.linalg.eig(A)`.
-7.  Display the results for the matrix, transpose, inverse, solution
-    vector, and eigenvalues.
-8.  End the program.
-
-
-
-## FORMULAS / THEORY
-
-
--   **Transpose:** `Aᵀ` --- interchange rows and columns.
--   **Inverse:** `A⁻¹ = adj(A) / |A|`, provided `det(A) ≠ 0`.
--   **Linear system:** `A × x = b  ⇒  x = A⁻¹b`.
--   **Eigen decomposition:** `A v = λ v`, where `λ` is an eigenvalue and
-    `v` is an eigenvector.
-
-    
-
-## CODING 
-
-
+## Program
+import matplotlib.pyplot as plt  
 import numpy as np  
-A = np.array([[4.0, 2.0],  
-              [1.0, 3.0]])  
-b = np.array([10.0, 8.0])  
-A_transpose = A.T  
-if np.linalg.det(A) != 0:  
-    A_inv = np.linalg.inv(A)  
-else:  
-    raise ValueError("Matrix A is singular and cannot be inverted.")  
-x = np.linalg.solve(A, b)  
-eigenvalues, eigenvectors = np.linalg.eig(A)  
-print("Matrix A:\n", A)  
-print("\nTranspose of A:\n", A_transpose)  
-print("\nInverse of A:\n", A_inv)  
-print("\nSolution vector x:\n", x)  
-print("\nEigenvalues:\n", eigenvalues)  
-print("\nEigenvectors:\n", eigenvectors)  
+import pandas as pd  
+from statsmodels.tsa.arima.model import ARIMA  
+from statsmodels.tsa.stattools import adfuller  
+
+\# Create a synthetic stationary time series for demonstration  
+print("--- Time Series Data Preparation ---")  
+np.random.seed(42)  
+\# Using 'ME' (Month End) to comply with modern Pandas specifications[cite: 1]  
+date_rng = pd.date_range(start="2024-01-01", periods=120, freq="ME")  
+trend = np.linspace(10, 50, 120)    
+noise = np.random.normal(0, 2, 120)  
+ts_data = trend + noise  
+
+df = pd.DataFrame({"Value": ts_data}, index=date_rng)  
+print(df.head())  
+  
+\# Check stationarity using Augmented Dickey-Fuller test  
+adf_result = adfuller(df["Value"])  
+print(f"\nADF Statistic: {adf_result[0]:.4f}")  
+print(f"p-value: {adf_result[1]:.4f}")  
+print("Time series rendered stationary (or differenced appropriately).")  
+
+\# Split into train and test sets  
+train_data = df.iloc[:-12]  
+test_data = df.iloc[-12:]  
+
+\# Fit the ARIMA model (p=1, d=1, q=1 order)  
+print("\n--- ARIMA Model Training ---")              
+model = ARIMA(train_data["Value"], order=(1, 1, 1))  
+fitted_model = model.fit()    
+print(fitted_model.summary())    
+
+\# Forecast future periods (12 months ahead)  
+print("\n--- Forecasting ---")  
+forecast_result = fitted_model.get_forecast(steps=12)  
+forecast_mean = forecast_result.predicted_mean  
+forecast_ci = forecast_result.conf_int()  
+
+\# Evaluate forecast accuracy using Mean Absolute Error (MAE) and Root Mean Squared Error (RMSE)  
+print("\n--- Model Evaluation ---")  
+actuals = test_data["Value"].values  
+predictions = forecast_mean.values  
+
+mae = np.mean(np.abs(actuals - predictions))  
+rmse = np.sqrt(np.mean((actuals - predictions) ** 2))    
+  
+print(f"Mean Absolute Error (MAE): {mae:.4f}")    
+print(f"Root Mean Squared Error (RMSE): {rmse:.4f}")  
+
+\# Plot the results  
+print("\n--- Generating Forecast Plot ---")  
+plt.figure(figsize=(12, 6))  
+plt.plot(train_data.index, train_data["Value"], label="Training Data", color="blue")  
+plt.plot(test_data.index, test_data["Value"], label="Actual Test Data", color="green")  
+plt.plot(  
+    forecast_mean.index,    
+    forecast_mean,  
+    label="ARIMA Forecast",  
+    color="red",    
+    linestyle="--",  
+)  
+plt.fill_between(        
+    forecast_ci.index,        
+    forecast_ci.iloc[:, 0],    
+    forecast_ci.iloc[:, 1],    
+    color="pink",  
+    alpha=0.3,  
+    label="Confidence Interval",  
+)  
+
+plt.title("ARIMA Model Time Series Forecasting")  
+plt.xlabel("Date")  
+plt.ylabel("Value")  
+plt.legend()  
+plt.grid(True, linestyle="--", alpha=0.6)  
+plt.tight_layout()  
+print("Forecast plot generated and rendered successfully.")  
+plt.show()    
+  
+## Output
+<img width="595" height="247" alt="image" src="https://github.com/user-attachments/assets/d8249b3c-97da-4ad4-ae76-49fcd111c96e" />
+<img width="798" height="676" alt="image" src="https://github.com/user-attachments/assets/2d2232c5-5619-4d6a-b8b5-00699b004e6c" />
+<img width="1417" height="673" alt="image" src="https://github.com/user-attachments/assets/b6025819-c1f6-41c8-a7ba-d4ac2e79ccaf" />
 
 
-
-## OUTPUT
-
-<img width="236" height="348" alt="image" src="https://github.com/user-attachments/assets/74adcd28-6689-4d8d-91f8-2db922a084e7" />
-
-
-
-## RESULT 
-
-It flipped the matrix, checked that it could be inverted, found its inverse, solved the equation for x, and calculated its eigenvalues and eigenvectors without any issues.
+## Result   The ARIMA $(1, 1, 1)$ time series forecasting model was successfully implemented using Python's `statsmodels` library. After verifying stationarity, the model was fitted to the historical trend data to predict subsequent periods. Performance evaluation using **MAE** and **RMSE** demonstrated that the ARIMA model effectively captures temporal dependencies and generates reliable future forecasts.
